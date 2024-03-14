@@ -1244,7 +1244,7 @@ that use Sphinx's HTMLWriter class.
       The files under :confval:`html_static_path` are excluded from source
       files.
 
-.. confval:: html_static_link_path
+.. confval:: html_link_path
 
    A list of paths or files that contain custom static files (such as mathjax,
    images or videos files).  Relative paths are taken as relative to
@@ -1264,7 +1264,7 @@ that use Sphinx's HTMLWriter class.
       Unlike copyfiles inside a path, if a `dir` is set here, a dir-link
       with the same directory name will be created in the output folder
       :file:`_static`. Such as, setting
-      :file:`html_static_link_path = ['../../mathjax']` will create a
+      :file:`html_link_path = ['../../mathjax']` will create a
       link-dir :file:`_static/mathjax` inside OutDir, not link files inside
       :file:`../../mathjax` into :file:`_static`.
 
