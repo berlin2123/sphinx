@@ -879,11 +879,25 @@ class StandaloneHTMLBuilder(Builder):
         """Link html paths or files."""
         try:
             with progress_message(__('linking files')):
+                default_dst_fd = path.normpath(path.join(self.outdir,
+                                    '_static/_DoNotEditHerein'))
+                if not path.exists(default_dst_fd):
+                    os.mkdir(default_dst_fd)
                 for entry in self.config.html_link_path:
-                    src = path.normpath(path.join(self.confdir, entry))
-                    # remind against modification by adding '_DoNotEditHere'
-                    name = '_' + path.basename(src) + '_DoNotEditHere'
-                    dst = path.join(self.outdir, '_static', name)
+                    src = path.normpath(path.join(self.confdir, entry[0]))
+                    dst = path.join(self.outdir, entry[1])
+                    # check: if force to link, and creat none exsists parent directories
+                    if (not isAinsidePathB(dst, default_dst_fd)):
+                        if len(entry) == 3 and entry[3] == 'Force_link_to_Other_dir':
+                            logger.warning(__('You Forced link into outside of the default \
+path %r: Means you are willing to take possible risks.'), '_static/_DoNotEditHerein')
+                            if not path.exists(path.dirname(dst)):
+                                os.makedirs(path.dirname(dst))
+                        else:
+                            logger.warning(__('Will NOT link into outside of the default \
+path %r, unless you understand the risks and enforce it.'), '_static/_DoNotEditHerein')
+                            continue
+                    # to link
                     if path.exists(dst):
                         if path.islink(dst):
                             if os.readlink(dst) != src:
@@ -892,7 +906,7 @@ class StandaloneHTMLBuilder(Builder):
                         else:
                             # exists but not link, may created by other proccess,
                             logger.warning(__('Can not create link: \
-The same name %r exists in OutDir: %r'), name, path.join(self.outdir, '_static'))
+The same name %r exists in OutDir: %r'), path.basename(dst), path.dirname(dst)))
                     else:
                         os.symlink(src, dst)
         except Exception as err:
@@ -1291,24 +1305,51 @@ def validate_html_static_path(app: Sphinx, config: Config) -> None:
             config.html_static_path.remove(entry)
 
 
+def isAinsidePathB(A, PathB) -> bool:
+    if (path.splitdrive(A)[0] == path.splitdrive(PathB)[0] and
+        path.commonpath((PathB, A)) == path.normpath(PathB)):
+        return True
+    else:
+        return False
+
+
 def validate_html_link_path(app: Sphinx, config: Config) -> None:
     """Check html_link_path setting."""
+    # remove empty '[]' , '', `None` etc.
+    config.html_link_path = list(filter(None, config.html_link_path))
     # check configure type
+    # remind against modification by adding '_DoNotEditHerein'
+    default_dst_fd = '_static/_DoNotEditHerein'
     for i in range(len(config.html_link_path[:])):
         entry = config.html_link_path[i]
         if isinstance(entry, list):
             if len(entry) == 1 or entry[1] == '':
-
+                dst = default_dst_fd + '/' + path.basename(entry[0])
+                new_entry = [entry[0], dst]
+                if len(entry) == 3:
+                    new_entry.append(entry[2])
+                config.html_link_path[i] = new_entry
+        else:
+            dst = default_dst_fd + '/' + path.basename(entry)
+            config.html_link_path[i] = [entry, dst]
     # check source path position
     for entry in config.html_link_path[:]:
-        static_path = path.normpath(path.join(app.confdir, entry))
-        if not path.exists(static_path):
-            logger.warning(__('html_link_path entry %r does not exist'), entry)
+        src_path = path.normpath(path.join(app.confdir, entry[0]))
+        if not path.exists(src_path):
+            logger.warning(__('html_link_path SRC of entry %r' does not exist'), entry)
             config.html_link_path.remove(entry)
-        elif (path.splitdrive(app.outdir)[0] == path.splitdrive(static_path)[0] and
-              path.commonpath((app.outdir, static_path)) == path.normpath(app.outdir)):
-            logger.warning(__('html_link_path entry %r is placed inside outdir'), entry)
+        elif isAinsidePathB(src_path, app.outdir):
+            logger.warning(__('html_link_path SRC of entry %r is placed inside outdir'),
+                           entry)
             config.html_link_path.remove(entry)
+    # check dst position
+    for entry in config.html_link_path[:]:
+        dst_name = path.normpath(path.join(app.outdir, entry[1]))
+        if (not isAinsidePathB(dst_name, app.outdir)):
+            logger.warning(__('html_link_path DST of entry %r is placed outside outdir'),
+                           entry)
+            config.html_link_path.remove(entry)
+    
 
 
 def validate_html_logo(app: Sphinx, config: Config) -> None:
