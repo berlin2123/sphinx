@@ -643,7 +643,7 @@ class StandaloneHTMLBuilder(Builder):
         self.finish_tasks.add_task(self.copy_download_files)
         self.finish_tasks.add_task(self.copy_static_files)
         self.finish_tasks.add_task(self.copy_extra_files)
-        self.finish_tasks.add_task(self.link_html_files_at_last))
+        self.finish_tasks.add_task(self.link_html_files_at_last)
         self.finish_tasks.join()
 
     def write_doc(self, docname: str, doctree: nodes.document) -> None:
@@ -876,11 +876,11 @@ class StandaloneHTMLBuilder(Builder):
             logger.warning(__('cannot copy extra file %r'), err)
 
     def link_html_files_at_last(self) -> None:
-        """Link html paths or files."""
+        """Link html paths or files at last."""
         try:
             with progress_message(__('linking files')):
                 default_dst_fd = path.normpath(path.join(self.outdir,
-                                    '_static/_DoNotEditHerein'))
+                                                         '_static/_DoNotEditHerein'))
                 if not path.exists(default_dst_fd):
                     os.mkdir(default_dst_fd)
                 for entry in self.config.html_link_path:
@@ -888,14 +888,16 @@ class StandaloneHTMLBuilder(Builder):
                     dst = path.join(self.outdir, entry[1])
                     # check: if force to link, and creat none exsists parent directories
                     if (not isAinsidePathB(dst, default_dst_fd)):
-                        if len(entry) == 3 and entry[3] == 'Force_link_to_Other_dir':
-                            logger.warning(__('You Forced link into outside of the default \
-path %r: Means you are willing to take possible risks.'), '_static/_DoNotEditHerein')
+                        if len(entry) == 3 and entry[2] == 'Force_link_to_Other_dir':
+                            logger.warning(__('You Forced link into outside of the default '
+                                              'path %r: Means you are willing to take '
+                                              'possible risks.'), '_static/_DoNotEditHerein')
                             if not path.exists(path.dirname(dst)):
                                 os.makedirs(path.dirname(dst))
                         else:
-                            logger.warning(__('Will NOT link into outside of the default \
-path %r, unless you understand the risks and enforce it.'), '_static/_DoNotEditHerein')
+                            logger.warning(__('Will NOT link into outside of the default '
+                                              'path %r, unless you understand the risks and '
+                                              'enforce it.'), '_static/_DoNotEditHerein')
                             continue
                     # to link
                     if path.exists(dst):
@@ -905,8 +907,9 @@ path %r, unless you understand the risks and enforce it.'), '_static/_DoNotEditH
                                 os.symlink(src, dst)
                         else:
                             # exists but not link, may created by other proccess,
-                            logger.warning(__('Can not create link: \
-The same name %r exists in OutDir: %r'), path.basename(dst), path.dirname(dst)))
+                            logger.warning(__('Can not create link: The same name %r '
+                                              'exists in OutDir: %r'), 
+                                              path.basename(dst), path.dirname(dst))
                     else:
                         os.symlink(src, dst)
         except Exception as err:
@@ -1336,10 +1339,15 @@ def validate_html_link_path(app: Sphinx, config: Config) -> None:
     for entry in config.html_link_path[:]:
         src_path = path.normpath(path.join(app.confdir, entry[0]))
         if not path.exists(src_path):
-            logger.warning(__('html_link_path SRC of entry %r' does not exist'), entry)
+            logger.warning(__('html_link_path SRC of entry %r does not exist'), entry)
             config.html_link_path.remove(entry)
         elif isAinsidePathB(src_path, app.outdir):
             logger.warning(__('html_link_path SRC of entry %r is placed inside outdir'),
+                           entry)
+            config.html_link_path.remove(entry)
+        elif (path.isfile(src_path) and isAinsidePathB(app.outdir, path.dirname(src_path))
+              or path.isdir(src_path) and isAinsidePathB(app.outdir, src_path)):
+            logger.warning(__('html_link_path SRC of entry %r is the parent of outdir'),
                            entry)
             config.html_link_path.remove(entry)
     # check dst position
@@ -1349,7 +1357,6 @@ def validate_html_link_path(app: Sphinx, config: Config) -> None:
             logger.warning(__('html_link_path DST of entry %r is placed outside outdir'),
                            entry)
             config.html_link_path.remove(entry)
-    
 
 
 def validate_html_logo(app: Sphinx, config: Config) -> None:
